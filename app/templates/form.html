@@ -5,24 +5,126 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Recycling Form</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        /* Additional styles for the modal */
+        .modal {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.4); /* Black w/ opacity for the backdrop */
+        }
+    
+        /* Modal Content/Box, using colors from your CSS */
+        .modal-content {
+            background-color: #D6DAC8; /* Matching form background */
+            margin: 15% auto; /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #9CAFAA; /* Border color from your form inputs */
+            width: 80%; /* Could be more or less, depending on screen size */
+            border-radius: 8px; /* Consistency with form styling */
+        }
+    
+        /* The Close Button, styled to match */
+        .close {
+            color: #333;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+    
+        .close:hover,
+        .close:focus {
+            color: #7a918d; /* Hover effect from your submit button */
+            text-decoration: none;
+            cursor: pointer;
+        }
+    
+        h2 {
+            color: #333; /* Header color */
+        }
+    
+        p {
+            color: #333; /* Paragraph text color */
+        }
+    </style>    
 </head>
-<body>
+<body onload="showModal(); disableSubmit();">
+    <nav>
+        <ul>
+            <li><a href="{{ url_for('index') }}">Home</a></li>
+            <li><a href="{{ url_for('blog') }}">Blog</a></li>
+            <li><a href="{{ url_for('products') }}">Products</a></li>
+        </ul>
+    </nav>
+
     <h1>Recycling Form</h1>
-    <form method="POST" action="/">
+    <form method="POST" action="/" id="recycleForm">
         <label for="location">Location:</label>
-        <input type="text" id="location" name="location" required><br><br>
-        
+        <input type="text" id="location" name="location" placeholder="i.e. New York" required><br><br>
+
         <label for="material">Material:</label>
-        <select id="material" name="material" required>
+        <select id="material" name="material" required onchange="checkSelection()">
+            <option value="" disabled selected>Select a material</option>
             <option value="plastic">Plastic</option>
             <option value="metal">Metal</option>
             <option value="glass">Glass</option>
         </select><br><br>
-        
+
         <label for="item">Item:</label>
-        <input type="text" id="item" name="item" required><br><br>
-        
-        <button type="submit">Submit</button>
+        <input type="text" id="item" name="item" placeholder="i.e. yogurt container" required><br><br>
+
+        <button type="submit" id="submitBtn">Submit</button>
     </form>
+
+    <!-- The Modal -->
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>What to keep in mind when recycling</h2>
+            <p>“recycling is nice, but if you want to positively impact the environment in a meaningful way as an individual please think critically and reduce unnecessary buying” - Jason Brown</p>
+        </div>
+    </div>
+
+    <script>
+        // Get the modal
+        var modal = document.getElementById('myModal');
+
+        // Get the <span> element that closes the modal
+        var span = document.getElementsByClassName("close")[0];
+
+        // When the user clicks on the span (x), close the modal
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+        // When the user clicks anywhere outside of the modal, close it
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        // Function to display the modal
+        function showModal() {
+            modal.style.display = "block";
+        }
+
+        // Disable the submit button initially
+        function disableSubmit() {
+            document.getElementById('submitBtn').disabled = true;
+        }
+
+        // Enable submit button only if a valid material is selected
+        function checkSelection() {
+            var material = document.getElementById('material').value;
+            var submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = material == "";
+        }
+    </script>
 </body>
 </html>

@@ -24,6 +24,14 @@ def index():
         return render_template('response.html', response=response)
     else:
         return render_template('form.html')
+    
+@app.route('/blog')
+def blog():
+    return render_template('blog.html')
+
+@app.route('/products')
+def products():
+    return render_template('products.html')
 
 def get_db_connection():
     try:
