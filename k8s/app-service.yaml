@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: recycle-me-app-service  # Ensure this line correctly defines the service name
+spec:
+  type: NodePort  # Assuming you want to use NodePort for local access
+  ports:
+    - port: 5000
+      targetPort: 5000
+      protocol: TCP
+      nodePort: 30001  # Optional: specify a nodePort or leave it to Kubernetes to assign
+  selector:
+    app: recycle-me

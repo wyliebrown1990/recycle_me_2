@@ -1,0 +1,31 @@
+SELECT
+    table_schema,
+    table_name,
+    column_name
+FROM
+    information_schema.columns
+WHERE
+    table_schema NOT IN ('pg_catalog', 'information_schema')
+ORDER BY
+    table_schema, table_name, ordinal_position;
+
+    
+ table_schema |      table_name       | column_name 
+--------------+-----------------------+-------------
+ public       | items                 | id
+ public       | items                 | name
+ public       | items                 | material_id
+ public       | items                 | location_id
+ public       | locations             | id
+ public       | locations             | name
+ public       | materials             | id
+ public       | materials             | name
+ public       | non_recyclable_items  | id
+ public       | non_recyclable_items  | location
+ public       | non_recyclable_items  | material
+ public       | non_recyclable_items  | item_name
+ public       | non_recyclable_items  | timestamp
+ public       | unavailable_locations | id
+ public       | unavailable_locations | location
+ public       | unavailable_locations | timestamp
+(16 rows)

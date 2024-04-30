@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: recycle-me-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: recycle-me
+  template:
+    metadata:
+      labels:
+        app: recycle-me
+    spec:
+      containers:
+      - name: recycle-me
+        image: recycle-me-app:latest
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: app-volume
+          mountPath: /app
+      volumes:
+      - name: app-volume
+        hostPath:
+          path: /Users/wyliebrown/recycle_me_2/app
+          type: Directory

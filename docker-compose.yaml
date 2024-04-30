@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  db:
+    image: postgres:latest
+    volumes:
+      - ./data/db:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: recycling
+      POSTGRES_USER: wyliebrown
+      POSTGRES_PASSWORD: test123
+  app:
+    build: ./app
+    volumes:
+      - ./app:/app  # Mount the application code so changes are reflected
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://wyliebrown:test123@db/recycling
+    depends_on:
+      - db

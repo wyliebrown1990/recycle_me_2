@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  selector:
+    matchLabels:
+      app: postgres
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+      - image: postgres:latest
+        name: postgres
+        env:
+        - name: POSTGRES_DB
+          value: recycling
+        - name: POSTGRES_USER
+          value: wyliebrown
+        - name: POSTGRES_PASSWORD
+          value: test123
+        ports:
+        - containerPort: 5432
+          name: postgres
