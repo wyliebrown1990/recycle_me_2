@@ -1,7 +1,7 @@
 # tests/test_basic.py
 
 import unittest
-from recycle_me import app
+from app.recycle_me import app
 
 class BasicTests(unittest.TestCase):
     # executed prior to each test
