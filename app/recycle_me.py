@@ -1,13 +1,17 @@
 import psycopg2
+import logging
 from flask import Flask, request, render_template
 from fuzzywuzzy import process
-import datetime
-import socket
+import datetime #for timestamping writes to db
+import socket #allows me to run locally on random avail port
 import sys
 
-app = Flask(__name__)  # Create a Flask application instance
+app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://wyliebrown:test123@localhost/recycling'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# Set up basic logging to stdout with a level that captures more details
+logging.basicConfig(level=logging.DEBUG)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
