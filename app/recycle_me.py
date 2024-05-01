@@ -5,41 +5,8 @@ from fuzzywuzzy import process
 import datetime
 import socket
 import sys
-from opentelemetry import trace, metrics
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.metrics import MeterProvider
-from opentelemetry.sdk.metrics.export import PeriodicExportingMetricReader
-from opentelemetry.exporter.otlp.proto.grpc.metric_exporter import OTLPMetricExporter
-from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 
 app = Flask(__name__)
-FlaskInstrumentor().instrument_app(app)
-Psycopg2Instrumentor().instrument()
-
-# Configure OpenTelemetry Tracing
-trace.set_tracer_provider(TracerProvider())
-tracer = trace.get_tracer(__name__)
-otlp_trace_exporter = OTLPSpanExporter(endpoint="localhost:4317", insecure=True)
-trace.get_tracer_provider().add_span_processor(
-    BatchSpanProcessor(otlp_trace_exporter)
-)
-
-# Configure OpenTelemetry Metrics
-metrics.set_meter_provider(MeterProvider())
-meter = metrics.get_meter("recycle_me_app", version="0.1")
-otlp_metric_exporter = OTLPMetricExporter(endpoint="localhost:4317", insecure=True)
-metric_reader = PeriodicExportingMetricReader(otlp_metric_exporter)
-metrics.get_meter_provider().add_metric_reader(metric_reader)
-
-# Application-specific metrics
-request_counter = meter.create_counter(
-    "http_requests_total",
-    description="Total number of HTTP requests",
-    unit="1"
-)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://wyliebrown:test123@localhost/recycling'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -49,8 +16,6 @@ logging.basicConfig(level=logging.DEBUG)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    with tracer.start_as_current_span("index_route"):
-        request_counter.add(1)
         if request.method == 'POST':
             location = request.form['location'].lower()
             material = request.form['material']
@@ -67,12 +32,10 @@ def index():
     
 @app.route('/blog')
 def blog():
-    with tracer.start_as_current_span("blog_route"):
         return render_template('blog.html')
 
 @app.route('/products')
 def products():
-    with tracer.start_as_current_span("products_route"):
         return render_template('products.html')
 
 def get_db_connection():
@@ -103,7 +66,6 @@ def read_recyclable_items():
         return {}
 
 def recycle_me(location, material, item, recyclable_items):
-    with tracer.start_as_current_span("recycle_me_function"):
         location_matches = process.extractOne(location, recyclable_items.keys(), scorer=process.fuzz.ratio)
         if location_matches and location_matches[1] > 70:
             location = location_matches[0]
@@ -121,7 +83,6 @@ def recycle_me(location, material, item, recyclable_items):
             return "Sorry, recycling information for {} is not available.".format(location)
 
 def write_non_recyclable_item(location, material, item):
-    with tracer.start_as_current_span("write_non_recyclable_item"):
         conn = get_db_connection()
         if conn is not None:
             cursor = conn.cursor()
@@ -133,7 +94,6 @@ def write_non_recyclable_item(location, material, item):
             conn.close()
 
 def write_unavailable_location(location):
-    with tracer.start_as_current_span("write_unavailable_location"):
         conn = get_db_connection()
         if conn is not None:
             cursor = conn.cursor()
