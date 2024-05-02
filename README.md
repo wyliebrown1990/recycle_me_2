@@ -1,7 +1,7 @@
 /recycle_me_2
     /app
-        __init__.py       # This initializes your Flask application.
-        views.py          # This file contains your route definitions.
+        __init__.py       # This initializes the Flask application.
+        views.py          # This file contains the route definitions.
         models.py         # This file would contain your database models (if needed).
     /tests                # This directory will contain all your test files.
         __init__.py

@@ -14,14 +14,25 @@ spec:
     spec:
       containers:
       - name: recycle-me
-        image: recycle-me-app:latest
+        image: 181408841854.dkr.ecr.us-east-1.amazonaws.com/recycle-me
         ports:
-        - containerPort: 5000
-        volumeMounts:
-        - name: app-volume
-          mountPath: /app
-      volumes:
-      - name: app-volume
-        hostPath:
-          path: /Users/wyliebrown/recycle_me_2/app
-          type: Directory
+        - containerPort: 80
+        env:
+        - name: DATABASE_USER
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: username
+        - name: DATABASE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: db-secrets
+              key: password
+        - name: DATABASE_HOST
+          value: recycle-me-instance.c97nvm5e6tbs.us-east-1.rds.amazonaws.com
+        - name: DATABASE_PORT
+          value: "5432"
+        - name: DATABASE_NAME
+          value: "initial"
+        - name: SQLALCHEMY_DATABASE_URI
+          value: "postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)"

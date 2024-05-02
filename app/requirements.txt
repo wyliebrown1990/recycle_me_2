@@ -9,3 +9,4 @@ opentelemetry-instrumentation-flask
 opentelemetry-instrumentation-sqlalchemy
 opentelemetry-exporter-otlp
 opentelemetry-instrumentation-psycopg2
+python-dotenv
