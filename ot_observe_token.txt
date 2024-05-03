@@ -1,0 +1,3 @@
+ds1BazTGPGRivb48VfCQ:bXF2O7Y6wd_m9J4E87T6_No4ujybjXcg
+
+helm -n observe get values observe-traces -o yaml > observe-traces-values.yaml

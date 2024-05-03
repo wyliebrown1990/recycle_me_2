@@ -8,6 +8,34 @@ from fuzzywuzzy import process
 import datetime
 import socket
 import sys
+from opentelemetry import trace
+from opentelemetry.trace.status import Status, StatusCode
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
+
+# Create a TracerProvider
+provider = TracerProvider()
+
+# Configure OTLP exporter to send traces to OpenTelemetry Collector
+otlp_exporter = OTLPSpanExporter(
+    endpoint="localhost:4317",  # Adjust this to your OpenTelemetry Collector endpoint
+    insecure=True  # Use False if your endpoint is secured
+)
+
+# Add OTLP exporter to the tracer provider via a BatchSpanProcessor
+otlp_processor = BatchSpanProcessor(otlp_exporter)
+provider.add_span_processor(otlp_processor)
+
+# Optionally, add a ConsoleSpanExporter for local debugging and development
+console_processor = BatchSpanProcessor(ConsoleSpanExporter())
+provider.add_span_processor(console_processor)
+
+# Set the configured provider as the global default
+trace.set_tracer_provider(provider)
+
+# Create a tracer from the global tracer provider
+tracer = trace.get_tracer("my.tracer.name")
 
 load_dotenv()  # This loads the environment variables from the .env file
 
@@ -35,61 +63,76 @@ logging.basicConfig(level=logging.DEBUG)
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    if request.method == 'POST':
-        location = request.form['location'].lower()
-        material = request.form['material']
-        item = request.form['item']
-        
-        recyclable_items = read_recyclable_items()
-        if not recyclable_items:
-            return "No recyclable items found.", 400
-        
-        response = recycle_me(location, material, item, recyclable_items)
-        return render_template('response.html', response=response)
-    else:
-        return render_template('form.html')
+    with tracer.start_as_current_span("route: index") as span:
+        if request.method == 'POST':
+            location = request.form['location'].lower()
+            material = request.form['material']
+            item = request.form['item']
+            
+            recyclable_items = read_recyclable_items()
+            if not recyclable_items:
+                return "No recyclable items found.", 400
+            
+            response = recycle_me(location, material, item, recyclable_items)
+            return render_template('response.html', response=response)
+        else:
+            return render_template('form.html')
 
 @app.route('/blog')
 def blog():
-    return render_template('blog.html')
+    with tracer.start_as_current_span("route: blog"):
+        return render_template('blog.html')
 
 @app.route('/products')
 def products():
-    return render_template('products.html')
+    with tracer.start_as_current_span("route: products"):
+        return render_template('products.html')
 
 def get_db_connection():
-    # Use environment variables for database connection
-    try:
-        conn = psycopg2.connect(
-            host=db_host,
-            dbname=db_name,
-            user=db_user,
-            password=db_password)
-        print("Database connection established successfully.")
-        return conn
-    except Exception as e:
-        print("Error establishing database connection:", e)
-        return None
+    with tracer.start_as_current_span("db_connection") as span:
+        try:
+            conn = psycopg2.connect(
+                host=db_host,
+                dbname=db_name,
+                user=db_user,
+                password=db_password)
+            span.add_event("Database connection established successfully.")
+            return conn
+        except Exception as e:
+            span.record_exception(e)
+            span.set_status(Status(StatusCode.ERROR, "Failed to connect to the database"))
+            return None
 
 def read_recyclable_items():
-    conn = get_db_connection()
-    if conn is not None:
-        cursor = conn.cursor()
-        cursor.execute('SELECT l.name, m.name, i.name FROM items i JOIN materials m ON i.material_id = m.id JOIN locations l ON i.location_id = l.id;')
-        recyclable_items = {}
-        for location, material, item_name in cursor.fetchall():
-            if location not in recyclable_items:
-                recyclable_items[location] = {}
-            if material not in recyclable_items[location]:
-                recyclable_items[location][material] = []
-            recyclable_items[location][material].append(item_name)
-        cursor.close()
-        conn.close()
-        return recyclable_items
-    else:
-        return {}
+    with tracer.start_as_current_span("recyclable_db_check") as span:
+        conn = get_db_connection()
+        if conn is not None:
+            try:
+                cursor = conn.cursor()
+                query = 'SELECT l.name, m.name, i.name FROM items i JOIN materials m ON i.material_id = m.id JOIN locations l ON i.location_id = l.id;'
+                cursor.execute(query)
+                recyclable_items = {}
+                for location, material, item_name in cursor.fetchall():
+                    if location not in recyclable_items:
+                        recyclable_items[location] = {}
+                    if material not in recyclable_items[location]:
+                        recyclable_items[location][material] = []
+                    recyclable_items[location][material].append(item_name)
+                cursor.close()
+                conn.close()
+                span.add_event("Items fetched successfully")
+                return recyclable_items
+            except Exception as e:
+                span.record_exception(e)
+                span.set_status(Status(StatusCode.ERROR, "Query failed"))
+                return {}
+        else:
+            span.add_event("Failed to establish database connection")
+            span.set_status(Status(StatusCode.ERROR, "Connection failed"))
+            return {}
 
 def recycle_me(location, material, item, recyclable_items):
+    with tracer.start_as_current_span("recycler") as span:
         location_matches = process.extractOne(location, recyclable_items.keys(), scorer=process.fuzz.ratio)
         if location_matches and location_matches[1] > 70:
             location = location_matches[0]
@@ -107,6 +150,7 @@ def recycle_me(location, material, item, recyclable_items):
             return "Sorry, recycling information for {} is not available.".format(location)
 
 def write_non_recyclable_item(location, material, item):
+    with tracer.start_as_current_span("write_non_item") as span:
         conn = get_db_connection()
         if conn is not None:
             cursor = conn.cursor()
@@ -116,8 +160,11 @@ def write_non_recyclable_item(location, material, item):
             conn.commit()
             cursor.close()
             conn.close()
+        else:
+            span.set_status(Status(StatusCode.ERROR, "Failed to write non-recyclable item due to DB connection issue"))
 
 def write_unavailable_location(location):
+    with tracer.start_as_current_span("write_unavailable_item") as span:
         conn = get_db_connection()
         if conn is not None:
             cursor = conn.cursor()
@@ -127,15 +174,16 @@ def write_unavailable_location(location):
             conn.commit()
             cursor.close()
             conn.close()
+        else:
+            span.set_status(Status(StatusCode.ERROR, "Failed to write unavailable location due to DB connection issue"))
 
-# Use socket to find an available port
 def find_available_port():
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('', 0))  # Bind to a free port provided by the host.
-    port = s.getsockname()[1]  # Return the port number assigned.
+    s.bind(('', 0))
+    port = s.getsockname()[1]
     s.close()
     return port
 
 if __name__ == '__main__':
-    port = find_available_port()  # Find a free port
-    app.run(host='0.0.0.0', port=port, debug=True)  # Listen on all network interfaces
+    port = find_available_port()
+    app.run(host='0.0.0.0', port=port, debug=True)

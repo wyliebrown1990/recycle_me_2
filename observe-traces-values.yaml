@@ -1,0 +1,6 @@
+global:
+  observe:
+    collectionEndpoint: https://157526203278.collect.observeinc.com/
+observe:
+  token:
+    value: ds1ifARog7uFaeuOfzRx:kHecyORFcnKODpJOORv4FwhvIIsIviFJ

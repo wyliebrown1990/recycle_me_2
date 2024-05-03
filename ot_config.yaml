@@ -1,0 +1,20 @@
+receivers:
+  otlp:
+    protocols:
+      http:
+
+exporters:
+  otlphttp:
+    endpoint: "https://157526203278.collect.observeinc.com/v2/otel"
+    headers:
+      Authorization: "ds1ifARog7uFaeuOfzRx:kHecyORFcnKODpJOORv4FwhvIIsIviFJ"
+
+processors:
+  batch:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [otlphttp]
