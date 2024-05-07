@@ -1,0 +1,20 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+
+exporters:
+  jaeger:
+    endpoint: "localhost:14250"  # Jaeger gRPC endpoint
+    tls_enabled: false
+  prometheus:
+    endpoint: "0.0.0.0:9464"
+
+  logging:
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      exporters: [jaeger]
+
