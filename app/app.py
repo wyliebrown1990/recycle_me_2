@@ -9,37 +9,46 @@ import datetime
 import socket
 import sys
 from opentelemetry import trace
-from opentelemetry.trace.status import Status, StatusCode
+from opentelemetry.trace.status import StatusCode
 from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-
-# Create a TracerProvider
-provider = TracerProvider()
-
-# Configure OTLP exporter to send traces to OpenTelemetry Collector
-otlp_exporter = OTLPSpanExporter(
-    endpoint="localhost:4317",  # Adjust this to your OpenTelemetry Collector endpoint
-    insecure=True  # Use False if your endpoint is secured
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace.export import (
+    BatchSpanProcessor,
+    ConsoleSpanExporter,
 )
-
-# Add OTLP exporter to the tracer provider via a BatchSpanProcessor
-otlp_processor = BatchSpanProcessor(otlp_exporter)
-provider.add_span_processor(otlp_processor)
-
-# Optionally, add a ConsoleSpanExporter for local debugging and development
-console_processor = BatchSpanProcessor(ConsoleSpanExporter())
-provider.add_span_processor(console_processor)
-
-# Set the configured provider as the global default
-trace.set_tracer_provider(provider)
-
-# Create a tracer from the global tracer provider
-tracer = trace.get_tracer("my.tracer.name")
-
-load_dotenv()  # This loads the environment variables from the .env file
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.flask import FlaskInstrumentor
+from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 
 app = Flask(__name__)
+
+# Resource configuration for tracing
+resource = Resource(attributes={
+    "service.name": "Wylies-MacBook-Air",
+    "os-version": 14.1,
+    "cluster": "A",
+    "datacentre": "us-east-1a"
+})
+
+# Configure the OTLP exporter
+otlp_exporter = OTLPSpanExporter(
+    endpoint="localhost:4317",  # Endpoint of the Otel Collector
+    insecure=True  # Use TLS in production environments
+)
+
+# Set up OpenTelemetry Tracer Provider with OTLP exporter
+provider = TracerProvider(resource=resource)
+otlp_processor = BatchSpanProcessor(otlp_exporter)
+provider.add_span_processor(otlp_processor)
+trace.set_tracer_provider(provider)
+
+tracer = trace.get_tracer("my.tracer.name")
+
+#Adding logging to debug issue: 
+logging.basicConfig(level=logging.DEBUG)
+
+# This loads the environment variables from the .env file
+load_dotenv() 
 
 # Update the database URI to use environment variables with your RDS instance as the default
 db_user = os.getenv('DATABASE_USER', 'postgres')  # Default to 'postgres' if not set
@@ -62,8 +71,10 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 logging.basicConfig(level=logging.DEBUG)
 
 @app.route('/', methods=['GET', 'POST'])
+
+@tracer.start_as_current_span("index_start")
 def index():
-    with tracer.start_as_current_span("route: index") as span:
+    with tracer.start_as_current_span("home_route") as span:
         if request.method == 'POST':
             location = request.form['location'].lower()
             material = request.form['material']
@@ -89,7 +100,7 @@ def products():
         return render_template('products.html')
 
 def get_db_connection():
-    with tracer.start_as_current_span("db_connection") as span:
+    with tracer.start_as_current_span("db_connection") as get_db_span:
         try:
             conn = psycopg2.connect(
                 host=db_host,
@@ -104,7 +115,7 @@ def get_db_connection():
             return None
 
 def read_recyclable_items():
-    with tracer.start_as_current_span("recyclable_db_check") as span:
+    with tracer.start_as_current_span("recyclable_db_check") as read_recycle_span:
         conn = get_db_connection()
         if conn is not None:
             try:
@@ -132,7 +143,7 @@ def read_recyclable_items():
             return {}
 
 def recycle_me(location, material, item, recyclable_items):
-    with tracer.start_as_current_span("recycler") as span:
+    with tracer.start_as_current_span("recycler") as recycle_this_span:
         location_matches = process.extractOne(location, recyclable_items.keys(), scorer=process.fuzz.ratio)
         if location_matches and location_matches[1] > 70:
             location = location_matches[0]
@@ -150,7 +161,7 @@ def recycle_me(location, material, item, recyclable_items):
             return "Sorry, recycling information for {} is not available.".format(location)
 
 def write_non_recyclable_item(location, material, item):
-    with tracer.start_as_current_span("write_non_item") as span:
+    with tracer.start_as_current_span("write_non_item") as write_item_span:
         conn = get_db_connection()
         if conn is not None:
             cursor = conn.cursor()
@@ -164,7 +175,7 @@ def write_non_recyclable_item(location, material, item):
             span.set_status(Status(StatusCode.ERROR, "Failed to write non-recyclable item due to DB connection issue"))
 
 def write_unavailable_location(location):
-    with tracer.start_as_current_span("write_unavailable_item") as span:
+    with tracer.start_as_current_span("write_unavailable_item") as write_location_span:
         conn = get_db_connection()
         if conn is not None:
             cursor = conn.cursor()
