@@ -1,3 +1,10 @@
-ds1BazTGPGRivb48VfCQ:bXF2O7Y6wd_m9J4E87T6_No4ujybjXcg
+ds1ifARog7uFaeuOfzRx:kHecyORFcnKODpJOORv4FwhvIIsIviFJ
 
 helm -n observe get values observe-traces -o yaml > observe-traces-values.yaml
+
+
+NAME: observe-traces
+LAST DEPLOYED: Fri May  3 07:22:38 2024
+NAMESPACE: observe
+STATUS: deployed
+REVISION: 1
